@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CPA — Hamza Elabbassi</title>
+
+  <!-- ═══ SEO ═══ -->
+  <meta name="description" content="Portfolio de Hamza Elabbassi — Élève ingénieur G2M à l'ENIM Rabat, spécialisé en mécanique des structures, matériaux et simulation numérique."/>
+  <meta name="keywords" content="Hamza Elabbassi, ingénieur, G2M, ENIM, mécanique, matériaux, Ansys, portfolio"/>
+  <meta name="author" content="Hamza Elabbassi"/>
+  <meta name="robots" content="index, follow"/>
+  <meta name="language" content="French"/>
+  <meta name="revisit-after" content="7 days"/>
+
+  <!-- ═══ Open Graph ═══ -->
+  <meta property="og:title" content="Hamza Elabbassi — Élève Ingénieur G2M · ENIM"/>
+  <meta property="og:description" content="Portfolio académique et technique — Mécanique, Matériaux, Simulation numérique."/>
+  <meta property="og:image" content="CPA.png"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:locale" content="fr_FR"/>
+  <!-- ⚠️ À PERSONNALISER : remplace par ton vrai domaine -->
+  <meta property="og:url" content="https://hamzaelabbassi.com"/>
+
+  <!-- ═══ Favicons ═══ -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="apple-touch-icon" href="favicon.png"/>
+  <meta name="theme-color" content="#111111"/>
+
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Cinzel:wght@400;600&family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    /*
+     * ═══════════════════════════════════════════════════════════════
+     *  SÉCURITÉ FIREBASE — À FAIRE AVANT PUBLICATION
+     * ═══════════════════════════════════════════════════════════════
+     *  1. Dans Firebase Console → Firestore → Rules, colle :
+     *
+     *  rules_version = '2';
+     *  service cloud.firestore {
+     *    match /databases/{database}/documents {
+     *      match /projets/{doc} {
+     *        allow read: if true;
+     *        allow write: if request.auth != null;
+     *      }
+     *      match /certifs/{doc} {
+     *        allow read: if true;
+     *        allow write: if request.auth != null;
+     *      }
+     *    }
+     *  }
+     *
+     *  2. Dans EmailJS Dashboard → Settings → Allowed Origins :
+     *     ajoute UNIQUEMENT ton domaine (ex: https://hamzaelabbassi.com)
+     *     pour empêcher le spam depuis d'autres sites.
+     *
+     *  3. Active reCAPTCHA dans EmailJS pour bloquer les bots.
+     * ═══════════════════════════════════════════════════════════════
+     *
+     *  L'apiKey Firebase est normale en front-end — c'est les RÈGLES
+     *  Firestore ci-dessus qui protègent réellement tes données.
+     */
+    const firebaseConfig = {
+      apiKey:            "AIzaSyDobc4-5ohO3Nirka1-j2nHG_QrVEZWpNE",
+      authDomain:        "cpa5-8758e.firebaseapp.com",
+      projectId:         "cpa5-8758e",
+      storageBucket:     "cpa5-8758e.firebasestorage.app",
+      messagingSenderId: "740498037904",
+      appId:             "1:740498037904:web:7e4b753cfda8f735140c15",
+      measurementId:     "G-31MTPB50PM"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const db   = getFirestore(app);
+    const auth = getAuth(app);
+
+    window._fb = {
+      db, auth,
+      collection, addDoc, getDocs, deleteDoc, doc, query, orderBy,
+      signInWithEmailAndPassword, signOut, onAuthStateChanged
+    };
+
+    onAuthStateChanged(auth, user => {
+      window._adminConnecte = !!user;
+      document.getElementById('admin-toggle-btn').style.display = user ? 'block' : 'none';
+      document.body.classList.toggle('admin-mode', !!user);
+      if (user) renderAdminLists();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      chargerProjets();
+      chargerCertificats();
+      initScrollReveal();
+    });
+  </script>
+
+  <style>
+    :root {
+      --noir: #111;
+      --blanc: #fff;
+      --gris-clair: #f5f5f5;
+      --gris-texte: #555;
+      --bleu: #2c3e7a;
+      --bordure: #e0e0e0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    #page-loader {
+      position: fixed; inset: 0; background: var(--blanc); z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem;
+      transition: opacity .5s ease, visibility .5s ease;
+    }
+    #page-loader.masque { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-logo { font-family: 'Dancing Script', cursive; font-size: 3rem; color: var(--noir); animation: puls 1.2s ease-in-out infinite; }
+    .loader-barre { width: 120px; height: 2px; background: var(--bordure); overflow: hidden; position: relative; }
+    .loader-barre::after { content: ''; position: absolute; left: -100%; top: 0; width: 100%; height: 100%; background: var(--bleu); animation: glide 1s ease-in-out infinite; }
+    @keyframes puls { 0%,100%{opacity:1} 50%{opacity:.4} }
+    @keyframes glide { to { left: 100%; } }
+
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity .65s ease, transform .65s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    body { font-family: 'Lato', sans-serif; background: var(--blanc); color: var(--noir); overflow-x: hidden; }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      background: var(--noir); display: flex; align-items: center;
+      justify-content: space-between; padding: 0 3.5rem; height: 68px;
+      box-shadow: 0 2px 20px rgba(0,0,0,.4);
+    }
+    .nav-logo { font-family: 'Dancing Script', cursive; font-size: 2.2rem; color: #fff; letter-spacing: .05em; text-decoration: none; line-height: 1; }
+    .nav-logo span { display: block; font-family: 'Lato', sans-serif; font-size: .48rem; font-weight: 300; letter-spacing: .3em; text-transform: uppercase; color: #aaa; margin-top: -3px; }
+    .nav-liens { list-style: none; display: flex; align-items: center; gap: .2rem; }
+    .nav-liens li a { font-family: 'Cinzel', serif; font-size: .72rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: #ccc; text-decoration: none; padding: .45rem 1rem; border: 1px solid transparent; transition: color .25s, border-color .25s; }
+    .nav-liens li a:hover { color: #fff; border-color: rgba(255,255,255,.25); }
+
+    #accueil { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; padding-top: 68px; }
+    .hero-photo { position: relative; overflow: hidden; background: #0a0a0a; }
+    .hero-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; filter: brightness(.92) contrast(1.05); transition: transform 8s ease; }
+    .hero-photo:hover img { transform: scale(1.03); }
+    .hero-photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to right, transparent 60%, rgba(255,255,255,.18) 85%, var(--blanc) 100%); pointer-events: none; }
+    .hero-badge { position: absolute; bottom: 2.5rem; left: 2.2rem; background: var(--noir); color: var(--blanc); padding: .55rem 1.1rem; font-family: 'Cinzel', serif; font-size: .55rem; letter-spacing: .25em; text-transform: uppercase; z-index: 2; display: flex; align-items: center; gap: .6rem; }
+    .hero-badge::before { content: ''; width: .5rem; height: .5rem; background: var(--bleu); border-radius: 50%; flex-shrink: 0; }
+    .hero-texte { display: flex; flex-direction: column; justify-content: center; padding: 5rem 4.5rem 5rem 3.5rem; gap: 1.6rem; }
+    .bonjour { font-family: 'Dancing Script', cursive; font-size: 1.6rem; color: var(--bleu); opacity: 0; animation: fadeUp .7s .2s forwards; }
+    .hero-texte h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.6rem,4.5vw,4rem); font-weight: 700; line-height: 1.05; opacity: 0; animation: fadeUp .7s .35s forwards; }
+    .hero-texte h1 .prenom { color: var(--bleu); }
+    .hero-ligne { width: 3rem; height: 2px; background: var(--bleu); opacity: 0; animation: fadeUp .7s .45s forwards; }
+    .parcours { border-left: 3px solid var(--noir); padding-left: 1.2rem; display: flex; flex-direction: column; gap: .6rem; opacity: 0; animation: fadeUp .7s .55s forwards; }
+    .parcours-item { display: flex; align-items: center; gap: .6rem; font-size: .88rem; color: var(--gris-texte); }
+    .parcours-item .fleche { color: var(--bleu); font-size: .7rem; font-weight: 700; }
+    .parcours-item strong { color: var(--noir); }
+    .citation-bloc { background: var(--noir); color: var(--blanc); padding: 1.3rem 1.6rem; position: relative; opacity: 0; animation: fadeUp .7s .65s forwards; }
+    .citation-bloc::before { content: '\201C'; font-family: 'Playfair Display', serif; font-size: 5rem; color: rgba(255,255,255,.08); position: absolute; top: -.6rem; left: .8rem; line-height: 1; }
+    .citation-bloc p { font-family: 'Playfair Display', serif; font-style: italic; font-size: .9rem; line-height: 1.8; position: relative; z-index: 1; }
+    .citation-bloc .auteur { font-family: 'Cinzel', serif; font-size: .62rem; letter-spacing: .2em; color: #aaa; margin-top: .6rem; text-transform: uppercase; font-style: normal; display: block; }
+    .btn-voir { display: inline-flex; align-items: center; gap: .7rem; background: var(--noir); color: var(--blanc); font-family: 'Cinzel', serif; font-size: .7rem; letter-spacing: .2em; text-transform: uppercase; padding: .9rem 2.2rem; text-decoration: none; align-self: flex-start; transition: background .2s, transform .15s, gap .2s; opacity: 0; animation: fadeUp .7s .75s forwards; }
+    .btn-voir:hover { background: var(--bleu); transform: translateY(-2px); gap: 1.2rem; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+
+    .separateur { width: 100%; height: 1px; background: var(--bordure); }
+    section:not(#accueil) { padding: 5.5rem 5rem; }
+    .etiquette { font-family: 'Cinzel', serif; font-size: .63rem; letter-spacing: .35em; text-transform: uppercase; color: var(--bleu); margin-bottom: .6rem; display: flex; align-items: center; gap: .8rem; }
+    .etiquette::before { content: ''; display: inline-block; width: 2rem; height: 1px; background: var(--bleu); }
+    .titre-section { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem,3vw,2.6rem); font-weight: 700; margin-bottom: 3rem; }
+    .titre-section .accent { color: var(--bleu); }
+
+    #apropos { background: var(--gris-clair); }
+    .apropos-grille { display: grid; grid-template-columns: 1.4fr 1fr; gap: 4rem; align-items: start; }
+    .intro-phrase { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-style: italic; color: var(--bleu); border-left: 3px solid var(--bleu); padding-left: 1rem; margin-bottom: 1.6rem; line-height: 1.6; }
+    .bloc-paragraphe { margin-bottom: 1.4rem; }
+    .titre-mini { font-family: 'Cinzel', serif; font-size: .6rem; letter-spacing: .25em; text-transform: uppercase; margin-bottom: .35rem; display: flex; align-items: center; gap: .5rem; }
+    .titre-mini::before { content: ''; width: .8rem; height: 1px; background: var(--bleu); display: inline-block; }
+    .bloc-paragraphe p { font-size: .93rem; color: var(--gris-texte); line-height: 1.9; }
+    .bloc-paragraphe p strong { color: var(--noir); }
+    .comp-titre { font-family: 'Cinzel', serif; font-size: .6rem; letter-spacing: .25em; text-transform: uppercase; margin: 1.8rem 0 .9rem; display: flex; align-items: center; gap: .5rem; }
+    .comp-titre::before { content: ''; width: .8rem; height: 1px; background: var(--bleu); display: inline-block; }
+    .competences { display: flex; flex-wrap: wrap; gap: .55rem; }
+    .tag { border: 1px solid var(--noir); font-family: 'Cinzel', serif; font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; padding: .35rem .85rem; transition: background .2s, color .2s; cursor: default; }
+    .tag:hover { background: var(--noir); color: var(--blanc); }
+    .apropos-droite { display: flex; flex-direction: column; gap: 1.2rem; }
+
+    .timeline { display: flex; flex-direction: column; }
+    .tl-item { display: flex; gap: 1.2rem; position: relative; }
+    .tl-item:not(:last-child) .tl-ligne::after { content: ''; position: absolute; top: 2.2rem; left: calc(.55rem - .5px); width: 1px; height: 100%; background: var(--bordure); }
+    .tl-ligne { display: flex; flex-direction: column; align-items: center; position: relative; padding-top: .25rem; }
+    .tl-point { width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--blanc); border: 2px solid var(--bleu); flex-shrink: 0; z-index: 1; }
+    .tl-corps { padding: .1rem 0 1.8rem; }
+    .tl-annee { font-family: 'Cinzel', serif; font-size: .55rem; letter-spacing: .2em; color: var(--bleu); text-transform: uppercase; margin-bottom: .2rem; }
+    .tl-nom { font-family: 'Playfair Display', serif; font-size: .9rem; font-weight: 700; }
+    .tl-detail { font-size: .78rem; color: var(--gris-texte); margin-top: .1rem; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: .8rem; }
+    .stat-carte { background: var(--blanc); border: 1px solid var(--bordure); padding: 1rem .8rem; text-align: center; }
+    .stat-nombre { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--bleu); margin-bottom: .2rem; }
+    .stat-libelle { font-family: 'Cinzel', serif; font-size: .5rem; letter-spacing: .15em; text-transform: uppercase; color: var(--gris-texte); }
+
+    #projets { background: var(--blanc); }
+    #certificats { background: var(--gris-clair); }
+    .zone-vide { grid-column: 1/-1; padding: 4rem 2rem; text-align: center; border: 1px dashed var(--bordure); }
+    .zone-vide-icone { font-size: 2rem; color: var(--bordure); margin-bottom: .8rem; }
+    .zone-vide-texte { font-family: 'Cinzel', serif; font-size: .6rem; letter-spacing: .2em; text-transform: uppercase; color: #bbb; }
+    .projets-grille { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; }
+    .certificats-grille { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; }
+
+    .projet-carte { border: 1px solid var(--bordure); overflow: hidden; background: var(--blanc); transition: box-shadow .25s, transform .25s; display: flex; flex-direction: column; }
+    .projet-carte:hover { box-shadow: 0 8px 32px rgba(0,0,0,.1); transform: translateY(-4px); }
+    .projet-img-wrap { width: 100%; aspect-ratio: 4/3; overflow: hidden; background: var(--gris-clair); }
+    .projet-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .35s; }
+    .projet-carte:hover .projet-img-wrap img { transform: scale(1.06); }
+    .img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: var(--bordure); background: linear-gradient(135deg, #f8f8f8, #eee); }
+    .projet-info { padding: 1.2rem 1.3rem 1.4rem; flex: 1; display: flex; flex-direction: column; gap: .4rem; }
+    .projet-titre-carte { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; line-height: 1.3; }
+    .projet-desc { font-size: .82rem; color: var(--gris-texte); line-height: 1.6; }
+    .carte-actions { margin-top: .6rem; display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; }
+    .carte-voir { font-family: 'Cinzel', serif; font-size: .55rem; letter-spacing: .15em; text-transform: uppercase; color: var(--bleu); display: flex; align-items: center; gap: .4rem; cursor: pointer; }
+    .carte-voir span { transition: transform .2s; display: inline-block; }
+    .projet-carte:hover .carte-voir span { transform: translateX(4px); }
+    .btn-admin-carte { font-family: 'Cinzel', serif; font-size: .5rem; letter-spacing: .1em; text-transform: uppercase; color: #c0392b; background: none; border: 1px solid #e0a0a0; padding: .22rem .55rem; cursor: pointer; transition: all .2s; display: none; }
+    .btn-admin-carte:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
+    body.admin-mode .btn-admin-carte { display: inline-block; }
+
+    .certif-carte { background: var(--blanc); border: 1px solid var(--bordure); overflow: hidden; display: flex; flex-direction: column; transition: box-shadow .2s, transform .2s; }
+    .certif-carte:hover { box-shadow: 0 6px 24px rgba(0,0,0,.08); transform: translateY(-3px); }
+    .certif-img-wrap { width: 100%; aspect-ratio: 16/9; overflow: hidden; background: var(--gris-clair); }
+    .certif-img-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; transition: transform .35s; }
+    .certif-carte:hover .certif-img-wrap img { transform: scale(1.04); }
+    .certif-contenu { padding: 1.2rem 1.3rem 1.4rem; flex: 1; display: flex; flex-direction: column; gap: .3rem; }
+    .certif-titre-carte { font-family: 'Playfair Display', serif; font-size: .95rem; font-weight: 700; line-height: 1.3; }
+    .certif-detail-sub { font-size: .8rem; color: var(--gris-texte); }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 2rem; opacity: 0; pointer-events: none; transition: opacity .25s; }
+    .modal-overlay.visible { opacity: 1; pointer-events: all; }
+    .modal-boite { background: var(--blanc); width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; position: relative; transform: translateY(20px); transition: transform .3s; }
+    .modal-overlay.visible .modal-boite { transform: translateY(0); }
+    .modal-fermer { position: absolute; top: 1rem; right: 1rem; background: var(--noir); color: var(--blanc); border: none; width: 2rem; height: 2rem; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; z-index: 10; transition: background .2s; }
+    .modal-fermer:hover { background: var(--bleu); }
+    .modal-img-wrap { width: 100%; aspect-ratio: 16/7; overflow: hidden; background: var(--gris-clair); }
+    .modal-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .modal-corps { padding: 2.2rem 2.5rem 2.8rem; }
+    .modal-titre { font-family: 'Playfair Display', serif; font-size: 1.55rem; font-weight: 700; margin-bottom: 1.5rem; line-height: 1.2; }
+    .modal-sep { width: 100%; height: 1px; background: var(--bordure); margin: 1.2rem 0; }
+    .modal-section-titre { font-family: 'Cinzel', serif; font-size: .6rem; letter-spacing: .25em; text-transform: uppercase; margin-bottom: .8rem; display: flex; align-items: center; gap: .5rem; }
+    .modal-section-titre::before { content: ''; width: .8rem; height: 1px; background: var(--bleu); display: inline-block; }
+    .modal-texte { font-size: .9rem; color: var(--gris-texte); line-height: 1.9; white-space: pre-wrap; }
+
+    #modal-login .modal-boite { max-width: 400px; }
+    .login-titre { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; margin-bottom: 1.5rem; }
+    .login-field { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; }
+    .login-label { font-family: 'Cinzel', serif; font-size: .55rem; letter-spacing: .15em; text-transform: uppercase; color: var(--gris-texte); }
+    .login-input { border: 1px solid var(--bordure); padding: .65rem .85rem; font-family: 'Lato', sans-serif; font-size: .9rem; outline: none; transition: border-color .2s; }
+    .login-input:focus { border-color: var(--noir); }
+    .login-err { font-size: .78rem; color: #c0392b; display: none; margin-bottom: .5rem; }
+    .btn-login { background: var(--bleu); color: var(--blanc); border: none; font-family: 'Cinzel', serif; font-size: .62rem; letter-spacing: .15em; text-transform: uppercase; padding: .75rem 1.8rem; cursor: pointer; transition: background .2s; width: 100%; margin-top: .5rem; }
+    .btn-login:hover { background: #1e2d5a; }
+
+    /* Bouton admin : invisible visuellement, accessible uniquement aux admins connectés */
+    #admin-toggle-btn { position: fixed; bottom: 2rem; right: 2rem; background: var(--noir); color: var(--blanc); font-family: 'Cinzel', serif; font-size: .62rem; letter-spacing: .15em; text-transform: uppercase; padding: .7rem 1.3rem; cursor: pointer; z-index: 1000; border: 1px solid #333; transition: background .2s; display: none; }
+    #admin-toggle-btn:hover { background: var(--bleu); }
+
+    #admin-panel { position: fixed; bottom: 5rem; right: 2rem; width: 440px; background: #fff; border: 1px solid var(--bordure); box-shadow: 0 12px 40px rgba(0,0,0,.15); z-index: 1001; display: none; flex-direction: column; max-height: 82vh; overflow-y: auto; }
+    #admin-panel.ouvert { display: flex; }
+    .admin-header { background: var(--noir); color: var(--blanc); padding: .9rem 1.2rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-shrink: 0; }
+    .admin-titre { font-family: 'Cinzel', serif; font-size: .65rem; letter-spacing: .2em; text-transform: uppercase; }
+    .admin-header-right { display: flex; gap: .6rem; align-items: center; }
+    .admin-close { background: none; border: none; color: #aaa; cursor: pointer; font-size: 1rem; padding: 0; }
+    .admin-close:hover { color: #fff; }
+    .btn-deconnexion { background: none; border: 1px solid #555; color: #aaa; font-family: 'Cinzel', serif; font-size: .52rem; letter-spacing: .12em; text-transform: uppercase; padding: .3rem .7rem; cursor: pointer; transition: all .2s; }
+    .btn-deconnexion:hover { border-color: #fff; color: #fff; }
+    .admin-tabs { display: flex; border-bottom: 1px solid var(--bordure); flex-shrink: 0; }
+    .admin-tab { flex: 1; background: none; border: none; border-bottom: 2px solid transparent; font-family: 'Cinzel', serif; font-size: .58rem; letter-spacing: .15em; text-transform: uppercase; padding: .75rem; cursor: pointer; color: var(--gris-texte); transition: all .2s; }
+    .admin-tab.actif { color: var(--noir); border-bottom-color: var(--noir); }
+    .admin-tab-content { padding: 1.3rem; display: flex; flex-direction: column; gap: .9rem; }
+    .admin-field { display: flex; flex-direction: column; gap: .3rem; }
+    .admin-label { font-family: 'Cinzel', serif; font-size: .55rem; letter-spacing: .15em; text-transform: uppercase; color: var(--gris-texte); margin-bottom: .3rem; display: block; }
+    .admin-input { width: 100%; border: 1px solid var(--bordure); padding: .6rem .75rem; font-family: 'Lato', sans-serif; font-size: .85rem; outline: none; transition: border-color .2s; }
+    .admin-input:focus { border-color: var(--noir); }
+    .admin-textarea { width: 100%; border: 1px solid var(--bordure); padding: .6rem .75rem; font-family: 'Lato', sans-serif; font-size: .85rem; resize: vertical; outline: none; transition: border-color .2s; }
+    .admin-textarea:focus { border-color: var(--noir); }
+    .admin-btn { background: var(--noir); color: var(--blanc); border: none; font-family: 'Cinzel', serif; font-size: .6rem; letter-spacing: .15em; text-transform: uppercase; padding: .7rem 1.3rem; cursor: pointer; transition: background .2s; align-self: flex-start; }
+    .admin-btn:hover { background: var(--bleu); }
+    .admin-btn:disabled { opacity: .5; cursor: default; }
+    .admin-row { display: flex; align-items: center; gap: 1rem; }
+    .admin-err { font-size: .75rem; color: #c0392b; display: none; }
+    .admin-ok { font-size: .75rem; color: #27ae60; display: none; }
+    .admin-liste-titre { font-family: 'Cinzel', serif; font-size: .55rem; letter-spacing: .2em; text-transform: uppercase; color: #bbb; border-top: 1px solid var(--bordure); padding-top: .8rem; }
+    .admin-liste { display: flex; flex-direction: column; gap: .4rem; max-height: 130px; overflow-y: auto; }
+    .admin-item { display: flex; justify-content: space-between; align-items: center; font-size: .78rem; color: var(--gris-texte); padding: .35rem 0; border-bottom: 1px solid #f0f0f0; gap: .4rem; }
+    .admin-item-titre { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .admin-item-del { background: none; border: none; color: #ccc; cursor: pointer; font-size: .9rem; padding: 0 .3rem; }
+    .admin-item-del:hover { color: #c0392b; }
+
+    #contact { background: var(--gris-clair); }
+    .contact-conteneur { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
+    .contact-info h3 { font-family: 'Playfair Display', serif; font-size: 1.3rem; margin-bottom: 1rem; }
+    .contact-info p { font-size: .9rem; color: var(--gris-texte); line-height: 1.8; margin-bottom: 1.5rem; }
+    .contact-detail { display: flex; flex-direction: column; gap: .8rem; }
+    .contact-ligne { display: flex; gap: 1rem; font-size: .85rem; align-items: center; }
+    .contact-ligne .label { font-family: 'Cinzel', serif; font-size: .58rem; letter-spacing: .15em; text-transform: uppercase; color: var(--bleu); min-width: 85px; }
+    .contact-ligne .valeur { color: var(--gris-texte); }
+    .contact-ligne a { color: var(--bleu); text-decoration: none; }
+    .contact-ligne a:hover { text-decoration: underline; }
+    .formulaire { display: flex; flex-direction: column; gap: 1.2rem; }
+    .champ { display: flex; flex-direction: column; gap: .4rem; }
+    .champ label { font-family: 'Cinzel', serif; font-size: .58rem; letter-spacing: .15em; text-transform: uppercase; color: var(--gris-texte); }
+    .champ input, .champ textarea { border: 1px solid var(--bordure); background: var(--blanc); padding: .8rem 1rem; font-family: 'Lato', sans-serif; font-size: .9rem; outline: none; resize: none; transition: border-color .2s; }
+    .champ input:focus, .champ textarea:focus { border-color: var(--noir); }
+    .champ textarea { height: 110px; }
+    .btn-envoyer { background: var(--noir); color: var(--blanc); border: none; font-family: 'Cinzel', serif; font-size: .68rem; letter-spacing: .2em; text-transform: uppercase; padding: .9rem 2rem; cursor: pointer; align-self: flex-start; transition: background .2s; }
+    .btn-envoyer:hover { background: var(--bleu); }
+    .contact-succes { display: none; background: var(--bleu); color: var(--blanc); padding: 1rem 1.4rem; font-family: 'Cinzel', serif; font-size: .65rem; letter-spacing: .15em; text-transform: uppercase; }
+    .contact-erreur { display: none; background: #c0392b; color: var(--blanc); padding: .7rem 1rem; font-size: .78rem; }
+
+    /* ═══ FOOTER AMÉLIORÉ ═══ */
+    footer { background: var(--noir); color: #aaa; padding: 2.5rem 5rem; }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem; }
+    .footer-logo { font-family: 'Dancing Script', cursive; font-size: 1.8rem; color: var(--blanc); }
+    .footer-liens { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .footer-lien { font-family: 'Cinzel', serif; font-size: .58rem; letter-spacing: .15em; text-transform: uppercase; color: #aaa; text-decoration: none; display: flex; align-items: center; gap: .4rem; transition: color .2s; }
+    .footer-lien:hover { color: #fff; }
+    .footer-lien svg { width: 13px; height: 13px; fill: currentColor; }
+    .footer-copy { font-family: 'Cinzel', serif; font-size: .55rem; letter-spacing: .15em; text-transform: uppercase; color: #555; margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid #222; text-align: center; }
+
+    @media (max-width: 900px) {
+      nav { padding: 0 1.5rem; }
+      .nav-liens li a { padding: .4rem .6rem; font-size: .6rem; }
+      #accueil { grid-template-columns: 1fr; }
+      .hero-photo { height: 65vw; min-height: 300px; max-height: 500px; }
+      .hero-photo::after { background: linear-gradient(to bottom, transparent 60%, var(--blanc) 100%); }
+      .hero-texte { padding: 3rem 1.5rem 4rem; text-align: center; }
+      .parcours { border-left: none; padding-left: 0; align-items: center; }
+      .hero-ligne { margin: 0 auto; }
+      .btn-voir { align-self: center; }
+      section:not(#accueil) { padding: 4rem 1.5rem; }
+      .apropos-grille, .contact-conteneur { grid-template-columns: 1fr; }
+      .projets-grille, .certificats-grille { grid-template-columns: 1fr; }
+      footer { padding: 1.5rem; }
+      .footer-inner { flex-direction: column; align-items: center; text-align: center; }
+      .modal-corps { padding: 1.4rem; }
+      #admin-panel { width: calc(100vw - 2rem); right: 1rem; }
+    }
+    @media (min-width: 901px) and (max-width: 1150px) {
+      .projets-grille, .certificats-grille { grid-template-columns: repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<div id="page-loader">
+  <div class="loader-logo">CPA</div>
+  <div class="loader-barre"></div>
+</div>
+
+<nav>
+  <a href="#accueil" class="nav-logo">CPA<span>Comprendre · Puis · Apprendre</span></a>
+  <ul class="nav-liens">
+    <li><a href="#accueil">Accueil</a></li>
+    <li><a href="#apropos">À Propos</a></li>
+    <li><a href="#projets">Projets</a></li>
+    <li><a href="#certificats">Certificats</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</nav>
+
+<section id="accueil">
+  <div class="hero-photo">
+    <img src="CPA.png" alt="Hamza Elabbassi — Élève Ingénieur ENIM"/>
+    <div class="hero-badge">Élève Ingénieur — ENIM Rabat</div>
+  </div>
+  <div class="hero-texte">
+    <span class="bonjour">Bonjour, je suis</span>
+    <h1><span class="prenom">Hamza</span><br>Elabbassi</h1>
+    <div class="hero-ligne"></div>
+    <div class="parcours">
+      <div class="parcours-item"><span class="fleche">▸</span><span>Baccalauréat <strong>SM</strong></span></div>
+      <div class="parcours-item"><span class="fleche">▸</span><span>Classes Préparatoires <strong>PREPA MP</strong></span></div>
+      <div class="parcours-item"><span class="fleche">▸</span><span>Cycle Ingénieur <strong>G2M</strong></span></div>
+    </div>
+    <div class="citation-bloc">
+      <p>« La connaissance s'acquiert par l'expérience,<br>tout le reste n'est que de l'information. »</p>
+      <span class="auteur">— Albert Einstein</span>
+    </div>
+    <a href="#projets" class="btn-voir">Découvrir mes projets →</a>
+  </div>
+</section>
+<div class="separateur"></div>
+
+<section id="apropos">
+  <div class="etiquette reveal">À Propos</div>
+  <div class="apropos-grille">
+    <div class="apropos-texte">
+      <h2 class="titre-section reveal">Élève ingénieur<br><span class="accent">passionné & rigoureux</span></h2>
+      <p class="intro-phrase reveal">Avant d'apprendre, il faut comprendre —<br>c'est le fil conducteur de tout mon parcours.</p>
+      <div class="bloc-paragraphe reveal">
+        <div class="titre-mini">Formation</div>
+        <p>Étudiant en <strong>Génie des Matériaux et Mécanique (G2M)</strong> à l'ENIM, mon parcours de SM jusqu'au cycle ingénieur m'a construit une base scientifique solide, renforcée par deux années de prépa MP particulièrement exigeantes.</p>
+      </div>
+      <div class="bloc-paragraphe reveal">
+        <div class="titre-mini">Méthode de travail</div>
+        <p>Je construis mes compétences avec <strong>méthode et rigueur</strong>. Chaque projet commence par une phase d'analyse approfondie avant toute mise en œuvre — comprendre la physique avant de simuler, maîtriser la théorie avant de coder.</p>
+      </div>
+      <div class="bloc-paragraphe reveal">
+        <div class="titre-mini">Curiosité & ambition</div>
+        <p>Attiré autant par la <strong>mécanique des structures</strong> que par l'<strong>analyse numérique</strong>, je cherche à relier les disciplines : matériaux, simulation, programmation scientifique.</p>
+      </div>
+      <div class="comp-titre reveal">Outils & compétences</div>
+      <div class="competences reveal">
+        <span class="tag">Mécanique</span><span class="tag">RDM</span><span class="tag">Ansys</span>
+        <span class="tag">Matlab</span><span class="tag">Python</span>
+        <span class="tag">LaTeX</span><span class="tag">Excel</span>
+      </div>
+    </div>
+    <div class="apropos-droite">
+      <div class="timeline reveal">
+        <div class="tl-item">
+          <div class="tl-ligne"><div class="tl-point"></div></div>
+          <div class="tl-corps">
+            <div class="tl-annee">2022 – 2023</div>
+            <div class="tl-nom">Baccalauréat SM</div>
+            <div class="tl-detail">Sciences Mathématiques — mention obtenue</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-ligne"><div class="tl-point"></div></div>
+          <div class="tl-corps">
+            <div class="tl-annee">2023 – 2025</div>
+            <div class="tl-nom">CPGE MP</div>
+            <div class="tl-detail">Classes Préparatoires — Mathématiques & Physique</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-ligne"><div class="tl-point"></div></div>
+          <div class="tl-corps">
+            <div class="tl-annee">2025 – Présent</div>
+            <div class="tl-nom">Cycle Ingénieur G2M</div>
+            <div class="tl-detail">ENIM — Génie des Matériaux et Mécanique</div>
+          </div>
+        </div>
+      </div>
+      <div class="stats-row reveal">
+        <div class="stat-carte"><div class="stat-nombre">SM</div><div class="stat-libelle">Bac</div></div>
+        <div class="stat-carte"><div class="stat-nombre">MP</div><div class="stat-libelle">Prépa</div></div>
+        <div class="stat-carte"><div class="stat-nombre">G2M</div><div class="stat-libelle">ENIM</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="separateur"></div>
+
+<section id="projets">
+  <div class="etiquette reveal">Projets</div>
+  <h2 class="titre-section reveal">Mes <span class="accent">réalisations</span></h2>
+  <div class="projets-grille" id="projets-grille">
+    <div class="zone-vide" id="projets-vide">
+      <div class="zone-vide-icone">◈</div>
+      <p class="zone-vide-texte">Chargement en cours…</p>
+    </div>
+  </div>
+</section>
+<div class="separateur"></div>
+
+<section id="certificats">
+  <div class="etiquette reveal">Certificats</div>
+  <h2 class="titre-section reveal">Mes <span class="accent">certifications</span></h2>
+  <div class="certificats-grille" id="certificats-grille">
+    <div class="zone-vide" id="certificats-vide">
+      <div class="zone-vide-icone">◈</div>
+      <p class="zone-vide-texte">Chargement en cours…</p>
+    </div>
+  </div>
+</section>
+<div class="separateur"></div>
+
+<!-- MODAL DÉTAIL -->
+<div id="modal" class="modal-overlay" onclick="fermerSiOverlay(event)">
+  <div class="modal-boite">
+    <button class="modal-fermer" onclick="fermerModal()">✕</button>
+    <div class="modal-img-wrap" id="modal-img-wrap"></div>
+    <div class="modal-corps">
+      <div class="modal-titre" id="modal-titre"></div>
+      <div class="modal-sep"></div>
+      <div class="modal-section-titre">Détails</div>
+      <p class="modal-texte" id="modal-texte"></p>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LOGIN -->
+<div id="modal-login" class="modal-overlay" onclick="fermerSiOverlayLogin(event)">
+  <div class="modal-boite">
+    <button class="modal-fermer" onclick="fermerModalLogin()">✕</button>
+    <div class="modal-corps" style="padding-top:2.5rem">
+      <div class="login-titre">Connexion Admin</div>
+      <div class="login-field">
+        <label class="login-label">Email</label>
+        <input type="email" id="login-email" class="login-input" placeholder="votre@email.com" autocomplete="email"/>
+      </div>
+      <div class="login-field">
+        <label class="login-label">Mot de passe</label>
+        <input type="password" id="login-mdp" class="login-input" placeholder="••••••••"
+               onkeydown="if(event.key==='Enter')connexionAdmin()" autocomplete="current-password"/>
+      </div>
+      <div id="login-err" class="login-err"></div>
+      <button class="btn-login" onclick="connexionAdmin()">Se connecter</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOUTON ADMIN (visible uniquement si connecté) -->
+<div id="admin-toggle-btn" onclick="toggleAdmin()">⚙ Gérer le contenu</div>
+
+<!-- PANNEAU ADMIN -->
+<div id="admin-panel">
+  <div class="admin-header">
+    <span class="admin-titre">✦ Panneau de gestion</span>
+    <div class="admin-header-right">
+      <button class="btn-deconnexion" onclick="deconnexionAdmin()">Déconnexion</button>
+      <button class="admin-close" onclick="document.getElementById('admin-panel').classList.remove('ouvert')">✕</button>
+    </div>
+  </div>
+  <div class="admin-tabs">
+    <button class="admin-tab actif" onclick="switchTab('tab-projets',this)">Projets</button>
+    <button class="admin-tab" onclick="switchTab('tab-certifs',this)">Certificats</button>
+  </div>
+
+  <div id="tab-projets" class="admin-tab-content">
+    <div class="admin-field">
+      <label class="admin-label">URL Image (Cloudinary)</label>
+      <input type="text" id="p-img-url" class="admin-input" placeholder="https://res.cloudinary.com/…/image.jpg"/>
+      <small style="font-size:.7rem;color:#999;margin-top:.2rem;display:block">Upload sur cloudinary.com → copie le lien ici</small>
+    </div>
+    <div class="admin-field">
+      <label class="admin-label">Titre *</label>
+      <input type="text" id="p-titre" class="admin-input" placeholder="Ex : Analyse éléments finis"/>
+    </div>
+    <div class="admin-field">
+      <label class="admin-label">Description courte (carte)</label>
+      <input type="text" id="p-desc" class="admin-input" placeholder="Résumé en une phrase"/>
+    </div>
+    <div class="admin-field">
+      <label class="admin-label">Détails complets *</label>
+      <textarea id="p-details" class="admin-textarea" style="height:100px" placeholder="Contexte, méthodes, outils, résultats..."></textarea>
+    </div>
+    <div class="admin-row">
+      <button class="admin-btn" id="btn-add-projet" onclick="ajouterProjet()">+ Ajouter</button>
+    </div>
+    <div id="p-error" class="admin-err"></div>
+    <div id="p-ok" class="admin-ok"></div>
+    <div class="admin-liste-titre">Projets en ligne</div>
+    <div id="liste-projets" class="admin-liste"></div>
+  </div>
+
+  <div id="tab-certifs" class="admin-tab-content" style="display:none">
+    <div class="admin-field">
+      <label class="admin-label">URL Image (Cloudinary)</label>
+      <input type="text" id="c-img-url" class="admin-input" placeholder="https://res.cloudinary.com/…/image.jpg"/>
+      <small style="font-size:.7rem;color:#999;margin-top:.2rem;display:block">Upload sur cloudinary.com → copie le lien ici</small>
+    </div>
+    <div class="admin-field">
+      <label class="admin-label">Titre *</label>
+      <input type="text" id="c-titre" class="admin-input" placeholder="Ex : Ansys Getting Started"/>
+    </div>
+    <div class="admin-field">
+      <label class="admin-label">Organisme & date</label>
+      <input type="text" id="c-detail" class="admin-input" placeholder="Ex : Ansys · 2025"/>
+    </div>
+    <div class="admin-field">
+      <label class="admin-label">Description complète *</label>
+      <textarea id="c-details" class="admin-textarea" style="height:100px" placeholder="Compétences acquises..."></textarea>
+    </div>
+    <div class="admin-row">
+      <button class="admin-btn" id="btn-add-certif" onclick="ajouterCertif()">+ Ajouter</button>
+    </div>
+    <div id="c-error" class="admin-err"></div>
+    <div id="c-ok" class="admin-ok"></div>
+    <div class="admin-liste-titre">Certificats en ligne</div>
+    <div id="liste-certifs" class="admin-liste"></div>
+  </div>
+</div>
+
+<section id="contact">
+  <div class="etiquette reveal">Contact</div>
+  <h2 class="titre-section reveal">Travaillons <span class="accent">ensemble</span></h2>
+  <div class="contact-conteneur">
+    <div class="contact-info reveal">
+      <h3>Hamza Elabbassi</h3>
+      <p>Élève ingénieur G2M à l'ENIM Rabat, actuellement à la recherche d'un 
+      stage d'initiation en mécanique des structures, matériaux ou simulation numérique.</p>
+      <div class="contact-detail">
+        <div class="contact-ligne"><span class="label">Email</span><span class="valeur">hamzaelabbassi005@gmail.com</span></div>
+        <div class="contact-ligne"><span class="label">Ville</span><span class="valeur">Casablanca, Maroc</span></div>
+        <div class="contact-ligne"><span class="label">LinkedIn</span><a href="https://www.linkedin.com/in/hamza-elabbassi-342774323" target="_blank" rel="noopener noreferrer">linkedin.com/in/hamza-elabbassi</a></div>
+      </div>
+    </div>
+    <div class="formulaire reveal" id="contact-form">
+      <div class="champ"><label>Votre nom</label><input type="text" id="contact-nom" placeholder="Ex : Hamza Elabbassi" autocomplete="name"/></div>
+      <div class="champ"><label>Votre email</label><input type="email" id="contact-email" placeholder="exemple@email.com" autocomplete="email"/></div>
+      <div class="champ"><label>Message</label><textarea id="contact-message" placeholder="Votre message..."></textarea></div>
+      <div id="contact-erreur" class="contact-erreur"></div>
+      <button class="btn-envoyer" onclick="envoyerContact()">Envoyer →</button>
+      <div id="contact-succes" class="contact-succes">✓ Message envoyé avec succès !</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER AMÉLIORÉ ═══ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">CPA</div>
+    <div class="footer-liens">
+      <!-- ⚠️ À PERSONNALISER : remplace # par l'URL de ton CV PDF -->
+      <a href="CV.pdf" class="footer-lien" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM9 13h6v1H9zm0 3h6v1H9zm0-6h3v1H9z"/></svg>
+        Télécharger mon CV
+      </a>
+      <a href="https://www.linkedin.com/in/hamza-elabbassi-342774323" class="footer-lien" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        LinkedIn
+      </a>
+      <a href="mailto:hamzaelabbassi005@gmail.com" class="footer-lien">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        Email
+      </a>
+    </div>
+  </div>
+  <div class="footer-copy">© 2026 — Hamza Elabbassi · Tous droits réservés</div>
+</footer>
+
+<script>
+function escapeHTML(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+window.addEventListener('error', e => console.error('[CPA] Erreur globale :', e.error || e.message));
+window.addEventListener('unhandledrejection', e => console.error('[CPA] Promesse rejetée :', e.reason));
+
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('page-loader').classList.add('masque'), 600);
+});
+
+function initScrollReveal() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+}
+
+function ouvrirModal(titre, texte, imageUrl) {
+  const wrap = document.getElementById('modal-img-wrap');
+  if (imageUrl) {
+    const img = document.createElement('img');
+    img.src = imageUrl; img.alt = escapeHTML(titre);
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    wrap.innerHTML = ''; wrap.appendChild(img);
+  } else {
+    wrap.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem;color:#e0e0e0;background:linear-gradient(135deg,#f8f8f8,#eee)">◈</div>';
+  }
+  document.getElementById('modal-titre').textContent = titre;
+  document.getElementById('modal-texte').textContent = texte;
+  document.getElementById('modal').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+function fermerModal() { document.getElementById('modal').classList.remove('visible'); document.body.style.overflow = ''; }
+function fermerSiOverlay(e) { if (e.target === document.getElementById('modal')) fermerModal(); }
+
+function ouvrirModalLogin() {
+  document.getElementById('modal-login').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('login-email').focus(), 300);
+}
+function fermerModalLogin() { document.getElementById('modal-login').classList.remove('visible'); document.body.style.overflow = ''; }
+function fermerSiOverlayLogin(e) { if (e.target === document.getElementById('modal-login')) fermerModalLogin(); }
+
+async function connexionAdmin() {
+  const email = document.getElementById('login-email').value.trim();
+  const mdp   = document.getElementById('login-mdp').value;
+  const errEl = document.getElementById('login-err');
+  const btn   = document.querySelector('.btn-login');
+  errEl.style.display = 'none';
+  if (!email || !mdp) { errEl.textContent = 'Remplis tous les champs.'; errEl.style.display = 'block'; return; }
+  btn.textContent = 'Connexion…'; btn.disabled = true;
+  try {
+    const { auth, signInWithEmailAndPassword } = window._fb;
+    await signInWithEmailAndPassword(auth, email, mdp);
+    fermerModalLogin();
+    document.getElementById('admin-panel').classList.add('ouvert');
+  } catch(e) {
+    errEl.textContent = 'Email ou mot de passe incorrect.'; errEl.style.display = 'block';
+  }
+  btn.textContent = 'Se connecter'; btn.disabled = false;
+}
+
+async function deconnexionAdmin() {
+  const { auth, signOut } = window._fb;
+  await signOut(auth);
+  document.getElementById('admin-panel').classList.remove('ouvert');
+}
+
+// Raccourci clavier discret pour ouvrir le login admin
+// (frappe 'g2m' n'importe où sur la page)
+let _buf = '';
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { fermerModal(); fermerModalLogin(); }
+  if (e.key.length !== 1) return;
+  _buf += e.key.toLowerCase();
+  _buf = _buf.slice(-3);
+  if (_buf === 'g2m') {
+    _buf = '';
+    window._adminConnecte
+      ? document.getElementById('admin-panel').classList.toggle('ouvert')
+      : ouvrirModalLogin();
+  }
+});
+function toggleAdmin() {
+  window._adminConnecte
+    ? document.getElementById('admin-panel').classList.toggle('ouvert')
+    : ouvrirModalLogin();
+}
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.admin-tab-content').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('actif'));
+  document.getElementById(id).style.display = 'flex';
+  btn.classList.add('actif');
+}
+
+function getImageUrl(inputId) { return document.getElementById(inputId).value.trim() || ''; }
+function showMsg(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+async function ajouterProjet() {
+  const titre   = document.getElementById('p-titre').value.trim();
+  const desc    = document.getElementById('p-desc').value.trim();
+  const details = document.getElementById('p-details').value.trim();
+  const imageUrl = getImageUrl('p-img-url');
+  if (!titre)   return showMsg('p-error', 'Le titre est obligatoire.');
+  if (!details) return showMsg('p-error', 'Les détails sont obligatoires.');
+  const btn = document.getElementById('btn-add-projet');
+  btn.disabled = true;
+  try {
+    const { db, collection, addDoc } = window._fb;
+    await addDoc(collection(db, 'projets'), { titre, desc, details, imageUrl, createdAt: Date.now() });
+    ['p-titre','p-desc','p-details','p-img-url'].forEach(id => document.getElementById(id).value = '');
+    showMsg('p-ok', '✓ Projet ajouté avec succès !');
+    chargerProjets(); renderAdminLists();
+  } catch(e) { showMsg('p-error', 'Erreur : ' + e.message); }
+  btn.disabled = false;
+}
+
+async function ajouterCertif() {
+  const titre   = document.getElementById('c-titre').value.trim();
+  const detail  = document.getElementById('c-detail').value.trim();
+  const details = document.getElementById('c-details').value.trim();
+  const imageUrl = getImageUrl('c-img-url');
+  if (!titre)   return showMsg('c-error', 'Le titre est obligatoire.');
+  if (!details) return showMsg('c-error', 'La description est obligatoire.');
+  const btn = document.getElementById('btn-add-certif');
+  btn.disabled = true;
+  try {
+    const { db, collection, addDoc } = window._fb;
+    await addDoc(collection(db, 'certifs'), { titre, detail, details, imageUrl, createdAt: Date.now() });
+    ['c-titre','c-detail','c-details','c-img-url'].forEach(id => document.getElementById(id).value = '');
+    showMsg('c-ok', '✓ Certificat ajouté avec succès !');
+    chargerCertificats(); renderAdminLists();
+  } catch(e) { showMsg('c-error', 'Erreur : ' + e.message); }
+  btn.disabled = false;
+}
+
+async function supprimerProjet(id) {
+  if (!confirm('Supprimer ce projet ?')) return;
+  const { db, doc, deleteDoc } = window._fb;
+  await deleteDoc(doc(db, 'projets', id));
+  chargerProjets(); renderAdminLists();
+}
+async function supprimerCertif(id) {
+  if (!confirm('Supprimer ce certificat ?')) return;
+  const { db, doc, deleteDoc } = window._fb;
+  await deleteDoc(doc(db, 'certifs', id));
+  chargerCertificats(); renderAdminLists();
+}
+
+async function chargerProjets() {
+  const { db, collection, getDocs, query, orderBy } = window._fb;
+  const snap = await getDocs(query(collection(db, 'projets'), orderBy('createdAt', 'desc')));
+  const projets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const grille = document.getElementById('projets-grille');
+  const vide   = document.getElementById('projets-vide');
+  grille.querySelectorAll('.projet-carte').forEach(e => e.remove());
+  if (!projets.length) {
+    vide.style.display = '';
+    vide.querySelector('.zone-vide-texte').textContent = 'Les projets seront ajoutés prochainement.';
+    return;
+  }
+  vide.style.display = 'none';
+  projets.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'projet-carte reveal';
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'projet-img-wrap';
+    if (p.imageUrl) {
+      const img = document.createElement('img');
+      img.src = p.imageUrl; img.alt = p.titre; img.loading = 'lazy';
+      imgWrap.appendChild(img);
+    } else { imgWrap.innerHTML = '<div class="img-placeholder">◈</div>'; }
+    const info = document.createElement('div');
+    info.className = 'projet-info';
+    const titreEl = document.createElement('div');
+    titreEl.className = 'projet-titre-carte';
+    titreEl.textContent = p.titre;
+    info.appendChild(titreEl);
+    if (p.desc) {
+      const descEl = document.createElement('p');
+      descEl.className = 'projet-desc'; descEl.textContent = p.desc;
+      info.appendChild(descEl);
+    }
+    const actions = document.createElement('div');
+    actions.className = 'carte-actions';
+    const voir = document.createElement('div');
+    voir.className = 'carte-voir';
+    voir.innerHTML = 'Voir le détail <span>→</span>';
+    voir.addEventListener('click', () => ouvrirModal(p.titre, p.details, p.imageUrl));
+    const btnDel = document.createElement('button');
+    btnDel.className = 'btn-admin-carte'; btnDel.textContent = '✕ Supprimer';
+    btnDel.addEventListener('click', () => supprimerProjet(p.id));
+    actions.appendChild(voir); actions.appendChild(btnDel);
+    info.appendChild(actions); card.appendChild(imgWrap); card.appendChild(info);
+    grille.appendChild(card);
+    setTimeout(() => initScrollReveal(), 50);
+  });
+}
+
+async function chargerCertificats() {
+  const { db, collection, getDocs, query, orderBy } = window._fb;
+  const snap = await getDocs(query(collection(db, 'certifs'), orderBy('createdAt', 'desc')));
+  const certifs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const grille = document.getElementById('certificats-grille');
+  const vide   = document.getElementById('certificats-vide');
+  grille.querySelectorAll('.certif-carte').forEach(e => e.remove());
+  if (!certifs.length) {
+    vide.style.display = '';
+    vide.querySelector('.zone-vide-texte').textContent = 'Les certificats seront ajoutés prochainement.';
+    return;
+  }
+  vide.style.display = 'none';
+  certifs.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'certif-carte reveal';
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'certif-img-wrap';
+    if (c.imageUrl) {
+      const img = document.createElement('img');
+      img.src = c.imageUrl; img.alt = c.titre; img.loading = 'lazy';
+      imgWrap.appendChild(img);
+    } else { imgWrap.innerHTML = '<div class="img-placeholder">✦</div>'; }
+    const contenu = document.createElement('div');
+    contenu.className = 'certif-contenu';
+    const titreEl = document.createElement('div');
+    titreEl.className = 'certif-titre-carte'; titreEl.textContent = c.titre;
+    contenu.appendChild(titreEl);
+    if (c.detail) {
+      const detailEl = document.createElement('p');
+      detailEl.className = 'certif-detail-sub'; detailEl.textContent = c.detail;
+      contenu.appendChild(detailEl);
+    }
+    const actions = document.createElement('div');
+    actions.className = 'carte-actions';
+    const voir = document.createElement('div');
+    voir.className = 'certif-voir carte-voir';
+    voir.innerHTML = 'Voir le détail <span>→</span>';
+    voir.addEventListener('click', () => ouvrirModal(c.titre, c.details, c.imageUrl));
+    const btnDel = document.createElement('button');
+    btnDel.className = 'btn-admin-carte'; btnDel.textContent = '✕ Supprimer';
+    btnDel.addEventListener('click', () => supprimerCertif(c.id));
+    actions.appendChild(voir); actions.appendChild(btnDel);
+    contenu.appendChild(actions); card.appendChild(imgWrap); card.appendChild(contenu);
+    grille.appendChild(card);
+    setTimeout(() => initScrollReveal(), 50);
+  });
+}
+
+async function renderAdminLists() {
+  const { db, collection, getDocs, query, orderBy } = window._fb;
+  const snapP = await getDocs(query(collection(db, 'projets'), orderBy('createdAt', 'desc')));
+  const lP = document.getElementById('liste-projets');
+  lP.innerHTML = '';
+  snapP.docs.forEach(d => {
+    const div = document.createElement('div'); div.className = 'admin-item';
+    const span = document.createElement('span'); span.className = 'admin-item-titre'; span.textContent = d.data().titre;
+    const btn = document.createElement('button'); btn.className = 'admin-item-del'; btn.textContent = '✕';
+    btn.addEventListener('click', () => supprimerProjet(d.id));
+    div.appendChild(span); div.appendChild(btn); lP.appendChild(div);
+  });
+  const snapC = await getDocs(query(collection(db, 'certifs'), orderBy('createdAt', 'desc')));
+  const lC = document.getElementById('liste-certifs');
+  lC.innerHTML = '';
+  snapC.docs.forEach(d => {
+    const div = document.createElement('div'); div.className = 'admin-item';
+    const span = document.createElement('span'); span.className = 'admin-item-titre'; span.textContent = d.data().titre;
+    const btn = document.createElement('button'); btn.className = 'admin-item-del'; btn.textContent = '✕';
+    btn.addEventListener('click', () => supprimerCertif(d.id));
+    div.appendChild(span); div.appendChild(btn); lC.appendChild(div);
+  });
+}
+
+/* ── EMAILJS ──
+ * ⚠️ SÉCURITÉ : dans EmailJS Dashboard → Settings → Allowed Origins,
+ * restreins à ton domaine uniquement. Active reCAPTCHA si possible.
+ */
+emailjs.init('A0APA9qO2zInia8zY');
+let messagesEnvoyes = 0, dernierEnvoi = 0;
+
+function envoyerContact() {
+  const nom     = document.getElementById('contact-nom').value.trim();
+  const email   = document.getElementById('contact-email').value.trim();
+  const message = document.getElementById('contact-message').value.trim();
+  const errEl = document.getElementById('contact-erreur');
+  const sucEl = document.getElementById('contact-succes');
+  const btn   = document.querySelector('.btn-envoyer');
+  errEl.style.display = 'none'; sucEl.style.display = 'none';
+  if (!nom) { errEl.textContent = 'Veuillez entrer votre nom.'; errEl.style.display = 'block'; return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Email invalide.'; errEl.style.display = 'block'; return; }
+  if (!message || message.length < 10) { errEl.textContent = 'Message trop court (10 caractères minimum).'; errEl.style.display = 'block'; return; }
+  if (messagesEnvoyes >= 3) { errEl.textContent = 'Limite atteinte. Contactez-moi directement par email.'; errEl.style.display = 'block'; return; }
+  if (Date.now() - dernierEnvoi < 60000) {
+    const r = Math.ceil((60000 - (Date.now() - dernierEnvoi)) / 1000);
+    errEl.textContent = `Attendez ${r} seconde(s) avant de renvoyer.`; errEl.style.display = 'block'; return;
+  }
+  btn.textContent = 'Envoi en cours…'; btn.disabled = true;
+  emailjs.send('service_72ss838', 'template_5yp5sxl', { name: nom, email, message })
+    .then(() => {
+      messagesEnvoyes++; dernierEnvoi = Date.now();
+      sucEl.style.display = 'block';
+      ['contact-nom','contact-email','contact-message'].forEach(id => document.getElementById(id).value = '');
+      btn.textContent = 'Envoyer →'; btn.disabled = false;
+      setTimeout(() => sucEl.style.display = 'none', 5000);
+    })
+    .catch(() => {
+      errEl.textContent = "Erreur d'envoi. Écrivez directement à hamzaelabbassi005@gmail.com";
+      errEl.style.display = 'block'; btn.textContent = 'Envoyer →'; btn.disabled = false;
+    });
+}
+
+document.querySelectorAll('#contact-form input').forEach(inp =>
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') envoyerContact(); })
+);
+</script>
+</body>
+</html>
